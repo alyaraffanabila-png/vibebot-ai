@@ -382,22 +382,23 @@ const PLAYLIST = {
   netral: ['Indie','Acoustic'],
 };
 
-const SYSTEM_PROMPT = `Kamu adalah VibeBot, chatbot AI hasil proyek siswa SMK. Kepribadianmu ceria, gaul, hangat, suportif — gunakan Bahasa Indonesia santai ala Gen-Z secukupnya (boleh emoji tipis-tipis, jangan berlebihan).
+const SYSTEM_PROMPT = `Kamu adalah VibeBot, chatbot AI hasil proyek siswa SMK Negeri 1 Lais jurusan RPL. Kepribadianmu ceria, gaul, hangat, suportif — gunakan Bahasa Indonesia santai ala Gen-Z secukupnya (boleh emoji tipis-tipis, jangan berlebihan, jangan norak).
 
 Kemampuanmu: ngobrol santai, deteksi mood dari pesan user, kasih rekomendasi lagu sesuai mood, motivasi harian, ramalan zodiak, dan main tebak kata gaul.
 
-ATURAN OUTPUT WAJIB: Balas HANYA dengan satu objek JSON valid, tanpa markdown, tanpa teks lain di luar JSON, format persis:
-{"mood":"senang|sedih|marah|bosan|netral","reply":"isi balasan kamu di sini"}
+ATURAN OUTPUT WAJIB: Balas HANYA dengan satu objek JSON valid, tanpa markdown fence, tanpa teks lain di luar JSON, persis format ini:
+{"mood":"senang|sedih|marah|bosan|netral","reply":"isi balasan kamu di sini, teks biasa"}
 
-"mood" diisi sesuai suasana hati yang tersirat dari PESAN TERAKHIR user. Kalau tidak jelas, pakai "netral". "reply" jangan mengandung objek JSON lagi.`;
+"mood" diisi sesuai suasana hati yang tersirat dari PESAN TERAKHIR user (bukan mood kamu sendiri). Kalau tidak ada indikasi jelas, pakai "netral". "reply" jangan mengandung objek JSON lagi.`;
 
 let state = {
-  history: [],
+  history: [], // {role:'user'|'assistant', content:string}
   lastMood: 'netral',
   busy: false,
 };
 
 const chatEl = document.getElementById('chat');
+const orbEl = document.getElementById('orb');
 const moodLabelEl = document.getElementById('moodLabel');
 const quickRow = document.getElementById('quickRow');
 const modalRoot = document.getElementById('modalRoot');
@@ -445,44 +446,8 @@ function removeTyping(){
   if(t) t.remove();
 }
 
-// Ambil JSON dari teks (lebih tahan kalau Gemini nambah teks ekstra)
-function extractJSON(raw){
-  if(!raw) return null;
-  raw = String(raw).trim();
-
-  // hapus markdown code fence
-  raw = raw.replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'').trim();
-
-  // coba parse langsung
-  try { return JSON.parse(raw); } catch(e){}
-
-  // cari objek JSON terbesar di dalam teks (greedy)
-  const match = raw.match(/\{[\s\S]*\}/);
-  if(match){
-    try { return JSON.parse(match[0]); } catch(e){}
-  }
-
-  // fallback: ambil "reply" & "mood" dengan regex
-  const replyMatch = raw.match(/"reply"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-  const moodMatch  = raw.match(/"mood"\s*:\s*"([^"]+)"/);
-  if(replyMatch){
-    return {
-      mood: moodMatch ? moodMatch[1] : 'netral',
-      reply: replyMatch[1].replace(/\\n/g,'\n').replace(/\\"/g,'"').replace(/\\t/g,'\t')
-    };
-  }
-
-  return null;
-}
-
 async function callVibeBot(userText, opts={}){
-  // simpan pesan user (teks biasa)
   state.history.push({role:'user', content:userText});
-  // batasi history biar gak lag
-  if(state.history.length > 16){
-    state.history = state.history.slice(-16);
-  }
-
   addTyping();
   state.busy = true;
   document.getElementById('sendBtn').disabled = true;
@@ -496,27 +461,15 @@ async function callVibeBot(userText, opts={}){
         messages: state.history,
       })
     });
-
     const data = await response.json();
-
-    if(!response.ok){
-      removeTyping();
-      const errMsg = data?.error || 'Terjadi kesalahan di server';
-      addMsg({role:'bot', text: 'Waduh, ada masalah: ' + errMsg + '\n\nCoba cek lagi GEMINI_API_KEY di Vercel ya 🙏'});
-      return;
-    }
-
     let raw = (data.content || []).map(b=>b.text||'').join('').trim();
-    let parsed = extractJSON(raw);
+    raw = raw.replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/```$/,'').trim();
 
-    if(!parsed){
-      // fallback kalau JSON gagal
-      parsed = { mood: 'netral', reply: raw || 'Duh, aku lagi bingung dikit. Coba ketik ulang ya~' };
-    }
+    let parsed;
+    try{ parsed = JSON.parse(raw); }
+    catch(e){ parsed = {mood:'netral', reply: raw || 'Duh, VibeBot lagi nge-lag dikit. Coba lagi ya~'}; }
 
-    // simpan balasan bot sebagai teks biasa (bukan full JSON) biar history bersih
-    state.history.push({role:'assistant', content: parsed.reply || raw});
-
+    state.history.push({role:'assistant', content: JSON.stringify(parsed)});
     removeTyping();
     setMoodColor(parsed.mood || 'netral');
 
@@ -528,7 +481,6 @@ async function callVibeBot(userText, opts={}){
   }catch(err){
     removeTyping();
     addMsg({role:'bot', text:'Waduh, koneksi ke VibeBot lagi bermasalah nih. Coba lagi sebentar ya 🙏'});
-    console.error(err);
   }finally{
     state.busy = false;
     document.getElementById('sendBtn').disabled = false;
@@ -618,5 +570,131 @@ function openProfilModal(){
         <button class="close-x" id="closeX">✕</button>
         <h2>Profil VibeBot</h2>
         <span class="about-badge">✨ AI-powered · Gen-Z vibe</span>
-        <p class="about-p">VibeBot lahir dari istilah Gen-Z \"vibe\" — suasana atau energi yang terasa dari suatu situasi. Awalnya dibangun sebagai chatbot rule-based berbasis Python oleh siswa SMK, sekarang berevolusi jadi versi AI yang bisa benar-benar memahami obrolanmu.</p>
-        <p class="about-p">Fitur andalan: deteksi mood, rekomendasi musik, motivasi harian, ramalan 
+        <p class="about-p">VibeBot lahir dari istilah Gen-Z "vibe" — suasana atau energi yang terasa dari suatu situasi. Awalnya dibangun sebagai chatbot rule-based berbasis Python oleh siswa jurusan RPL SMK Negeri 1 Lais, sekarang berevolusi jadi versi AI yang bisa benar-benar memahami obrolanmu.</p>
+        <p class="about-p">Fitur andalan: deteksi mood, rekomendasi musik, motivasi harian, ramalan zodiak, dan game tebak kata gaul — semua ditemani gaya ngobrol yang santai dan suportif.</p>
+      </div>
+    </div>`;
+  document.getElementById('closeX').onclick = closeModal;
+  document.getElementById('ov').onclick = (e)=>{ if(e.target.id==='ov') closeModal(); };
+}
+
+function openZodiacModal(){
+  const btns = ZODIAC.map(z=>`<button data-z="${z}">${z}</button>`).join('');
+  modalRoot.innerHTML = `
+    <div class="overlay" id="ov">
+      <div class="sheet">
+        <button class="close-x" id="closeX">✕</button>
+        <h2>Horoscope Harian</h2>
+        <div class="sub">Pilih zodiak kamu</div>
+        <div class="zpick">${btns}</div>
+      </div>
+    </div>`;
+  document.getElementById('closeX').onclick = closeModal;
+  document.getElementById('ov').onclick = (e)=>{ if(e.target.id==='ov') closeModal(); };
+  document.querySelectorAll('.zpick button').forEach(b=>{
+    b.onclick = ()=>{
+      const z = b.dataset.z;
+      closeModal();
+      addMsg({role:'user', text:`[Horoscope Harian] Zodiak: ${z}`});
+      callVibeBot(`Buatin ramalan horoscope harian singkat buat zodiak ${z}, gaya kamu, positif dan fun.`);
+    };
+  });
+}
+
+function openKeluarModal(){
+  modalRoot.innerHTML = `
+    <div class="overlay" id="ov">
+      <div class="sheet">
+        <button class="close-x" id="closeX">✕</button>
+        <h2>Yakin mau keluar?</h2>
+        <div class="sub">Ini bakal reset obrolan kamu sama VibeBot.</div>
+        <div class="feat-list">
+          <div class="feat-item" id="confirmKeluar"><div class="ft">Ya, reset obrolan</div></div>
+          <div class="feat-item" id="cancelKeluar"><div class="ft">Batal</div></div>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('closeX').onclick = closeModal;
+  document.getElementById('ov').onclick = (e)=>{ if(e.target.id==='ov') closeModal(); };
+  document.getElementById('cancelKeluar').onclick = closeModal;
+  document.getElementById('confirmKeluar').onclick = ()=>{
+    closeModal();
+    state.history = [];
+    setMoodColor('netral');
+    chatEl.innerHTML = '';
+    addMsg({role:'bot', text:'Sampai jumpa lagi! Makasih udah ngobrol bareng VibeBot hari ini 💜 Semangat terus, ya!'});
+    setTimeout(()=> addMsg({role:'bot', text:'(obrolan direset — ketik apa aja buat mulai dari awal)'}), 500);
+  };
+}
+
+/* ---------- calculator (local, no API) ---------- */
+let calcState = '0';
+function openCalcModal(){
+  calcState = '0';
+  const keys = ['7','8','9','÷','4','5','6','×','1','2','3','-','0','.','=','+'];
+  const grid = keys.map(k=>{
+    const cls = (k==='=') ? 'eq' : (['÷','×','-','+'].includes(k) ? 'op' : '');
+    return `<button class="${cls}" data-k="${k}">${k}</button>`;
+  }).join('');
+  modalRoot.innerHTML = `
+    <div class="overlay" id="ov">
+      <div class="sheet">
+        <button class="close-x" id="closeX">✕</button>
+        <h2>Kalkulator Vibe</h2>
+        <div class="sub">Operasi matematika, bergaya VibeBot ✨</div>
+        <div id="calcDisplay">0</div>
+        <div class="calc-grid">
+          ${grid}
+          <button data-k="C" style="grid-column: span 4; background:var(--pink); border:none; color:#fff;">Clear</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('closeX').onclick = closeModal;
+  document.getElementById('ov').onclick = (e)=>{ if(e.target.id==='ov') closeModal(); };
+  document.querySelectorAll('.calc-grid button').forEach(b=>{
+    b.onclick = ()=> calcPress(b.dataset.k);
+  });
+}
+function calcPress(k){
+  const disp = document.getElementById('calcDisplay');
+  if(k==='C'){ calcState='0'; }
+  else if(k==='='){
+    try{
+      const expr = calcState.replace(/×/g,'*').replace(/÷/g,'/');
+      const result = Function('"use strict";return ('+expr+')')();
+      calcState = String(Number(result.toFixed(6)));
+    }catch(e){ calcState = 'Error'; }
+  } else {
+    if(calcState==='0' && !['+','-','×','÷','.'].includes(k)) calcState = k;
+    else calcState += k;
+  }
+  disp.textContent = calcState;
+}
+
+/* ---------- init ---------- */
+function init(){
+  renderQuickRow();
+  setMoodColor('netral');
+  addMsg({role:'bot', text:'Heyy! Aku VibeBot 👋 Chatbot AI temen ngobrol kamu — bisa baca mood, rekomendasiin lagu, kasih motivasi, sampai ngajak main tebak kata gaul. Mau mulai dari mana nih?'});
+}
+
+document.getElementById('sendBtn').onclick = handleSend;
+document.getElementById('textInput').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter') handleSend();
+});
+document.getElementById('menuBtn').onclick = openMenuModal;
+document.getElementById('profileBtn').onclick = openProfilModal;
+
+function handleSend(){
+  const input = document.getElementById('textInput');
+  const text = input.value.trim();
+  if(!text || state.busy) return;
+  addMsg({role:'user', text});
+  input.value = '';
+  callVibeBot(text);
+}
+
+init();
+</script>
+</body>
+</html>
