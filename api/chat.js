@@ -29,12 +29,16 @@ module.exports = async (req, res) => {
     const data = await response.json();
 
     if (!response.ok) {
-      return res.status(response.status).json({ error: data });
+      return res.status(200).json({
+        content: [{ type: 'text', text: 'DEBUG ERROR: ' + JSON.stringify(data) }],
+      });
     }
 
     const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') || '';
     return res.status(200).json({ content: [{ type: 'text', text }] });
   } catch (err) {
-    return res.status(500).json({ error: 'Gagal menghubungi VibeBot AI', detail: String(err) });
+    return res.status(200).json({
+      content: [{ type: 'text', text: 'DEBUG ERROR: ' + String(err) }],
+    });
   }
 };
