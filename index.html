@@ -449,14 +449,29 @@ function removeTyping(){
 function extractJSON(raw){
   if(!raw) return null;
   raw = raw.trim();
-  // hapus markdown code fence kalau ada
+
+  // hapus markdown code fence
   raw = raw.replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'').trim();
+
+  // coba parse langsung
   try { return JSON.parse(raw); } catch(e){}
+
   // cari objek JSON di dalam teks
-  const match = raw.match(/\{[\s\S]*\}/);
+  const match = raw.match(/\{[\s\S]*?\}/);
   if(match){
     try { return JSON.parse(match[0]); } catch(e){}
   }
+
+  // fallback: coba ambil "reply" dengan regex
+  const replyMatch = raw.match(/"reply"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  const moodMatch  = raw.match(/"mood"\s*:\s*"([^"]+)"/);
+  if(replyMatch){
+    return {
+      mood: moodMatch ? moodMatch[1] : 'netral',
+      reply: replyMatch[1].replace(/\\n/g,'\n').replace(/\\"/g,'"')
+    };
+  }
+
   return null;
 }
 
