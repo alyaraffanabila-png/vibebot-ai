@@ -1,11 +1,11 @@
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const { system, messages } = req.body;
 
-  const contents = (messages || []).map(m => ({
+  const contents = (messages || []).map((m) => ({
     role: m.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: m.content }],
   }));
@@ -32,9 +32,9 @@ export default async function handler(req, res) {
       return res.status(response.status).json({ error: data });
     }
 
-    const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
+    const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') || '';
     return res.status(200).json({ content: [{ type: 'text', text }] });
   } catch (err) {
     return res.status(500).json({ error: 'Gagal menghubungi VibeBot AI', detail: String(err) });
   }
-}
+};
