@@ -448,7 +448,7 @@ function removeTyping(){
 // Ambil JSON dari teks (lebih tahan kalau Gemini nambah teks ekstra)
 function extractJSON(raw){
   if(!raw) return null;
-  raw = raw.trim();
+  raw = String(raw).trim();
 
   // hapus markdown code fence
   raw = raw.replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'').trim();
@@ -456,19 +456,19 @@ function extractJSON(raw){
   // coba parse langsung
   try { return JSON.parse(raw); } catch(e){}
 
-  // cari objek JSON di dalam teks
-  const match = raw.match(/\{[\s\S]*?\}/);
+  // cari objek JSON terbesar di dalam teks (greedy)
+  const match = raw.match(/\{[\s\S]*\}/);
   if(match){
     try { return JSON.parse(match[0]); } catch(e){}
   }
 
-  // fallback: coba ambil "reply" dengan regex
+  // fallback: ambil "reply" & "mood" dengan regex
   const replyMatch = raw.match(/"reply"\s*:\s*"((?:[^"\\]|\\.)*)"/);
   const moodMatch  = raw.match(/"mood"\s*:\s*"([^"]+)"/);
   if(replyMatch){
     return {
       mood: moodMatch ? moodMatch[1] : 'netral',
-      reply: replyMatch[1].replace(/\\n/g,'\n').replace(/\\"/g,'"')
+      reply: replyMatch[1].replace(/\\n/g,'\n').replace(/\\"/g,'"').replace(/\\t/g,'\t')
     };
   }
 
@@ -618,7 +618,7 @@ function openProfilModal(){
         <button class="close-x" id="closeX">✕</button>
         <h2>Profil VibeBot</h2>
         <span class="about-badge">✨ AI-powered · Gen-Z vibe</span>
-        <p class="about-p">VibeBot lahir dari istilah Gen-Z "vibe" — suasana atau energi yang terasa dari suatu situasi. Awalnya dibangun sebagai chatbot rule-based berbasis Python oleh siswa jurusan RPL SMK Negeri 1 Lais, sekarang berevolusi jadi versi AI yang bisa benar-benar memahami obrolanmu.</p>
+        <p class="about-p">VibeBot lahir dari istilah Gen-Z \"vibe\" — suasana atau energi yang terasa dari suatu situasi. Awalnya dibangun sebagai chatbot rule-based berbasis Python oleh siswa jurusan RPL SMK Negeri 1 Lais, sekarang berevolusi jadi versi AI yang bisa benar-benar memahami obrolanmu.</p>
         <p class="about-p">Fitur andalan: deteksi mood, rekomendasi musik, motivasi harian, ramalan zodiak, dan game tebak kata gaul — semua ditemani gaya ngobrol yang santai dan suportif.</p>
       </div>
     </div>`;
