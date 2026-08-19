@@ -382,23 +382,22 @@ const PLAYLIST = {
   netral: ['Indie','Acoustic'],
 };
 
-const SYSTEM_PROMPT = `Kamu adalah VibeBot, chatbot AI hasil proyek siswa SMK Negeri 1 Lais jurusan RPL. Kepribadianmu ceria, gaul, hangat, suportif — gunakan Bahasa Indonesia santai ala Gen-Z secukupnya (boleh emoji tipis-tipis, jangan berlebihan, jangan norak).
+const SYSTEM_PROMPT = `Kamu adalah VibeBot, chatbot AI hasil proyek siswa SMK Negeri 1 Lais jurusan RPL. Kepribadianmu ceria, gaul, hangat, suportif — gunakan Bahasa Indonesia santai ala Gen-Z secukupnya (boleh emoji tipis-tipis, jangan berlebihan).
 
 Kemampuanmu: ngobrol santai, deteksi mood dari pesan user, kasih rekomendasi lagu sesuai mood, motivasi harian, ramalan zodiak, dan main tebak kata gaul.
 
-ATURAN OUTPUT WAJIB: Balas HANYA dengan satu objek JSON valid, tanpa markdown fence, tanpa teks lain di luar JSON, persis format ini:
-{"mood":"senang|sedih|marah|bosan|netral","reply":"isi balasan kamu di sini, teks biasa"}
+ATURAN OUTPUT WAJIB: Balas HANYA dengan satu objek JSON valid, tanpa markdown, tanpa teks lain di luar JSON, format persis:
+{"mood":"senang|sedih|marah|bosan|netral","reply":"isi balasan kamu di sini"}
 
-"mood" diisi sesuai suasana hati yang tersirat dari PESAN TERAKHIR user (bukan mood kamu sendiri). Kalau tidak ada indikasi jelas, pakai "netral". "reply" jangan mengandung objek JSON lagi.`;
+"mood" diisi sesuai suasana hati yang tersirat dari PESAN TERAKHIR user. Kalau tidak jelas, pakai "netral". "reply" jangan mengandung objek JSON lagi.`;
 
 let state = {
-  history: [], // {role:'user'|'assistant', content:string}
+  history: [],
   lastMood: 'netral',
   busy: false,
 };
 
 const chatEl = document.getElementById('chat');
-const orbEl = document.getElementById('orb');
 const moodLabelEl = document.getElementById('moodLabel');
 const quickRow = document.getElementById('quickRow');
 const modalRoot = document.getElementById('modalRoot');
@@ -446,8 +445,29 @@ function removeTyping(){
   if(t) t.remove();
 }
 
+// Ambil JSON dari teks (lebih tahan kalau Gemini nambah teks ekstra)
+function extractJSON(raw){
+  if(!raw) return null;
+  raw = raw.trim();
+  // hapus markdown code fence kalau ada
+  raw = raw.replace(/^```(?:json)?\s*/i,'').replace(/```\s*$/,'').trim();
+  try { return JSON.parse(raw); } catch(e){}
+  // cari objek JSON di dalam teks
+  const match = raw.match(/\{[\s\S]*\}/);
+  if(match){
+    try { return JSON.parse(match[0]); } catch(e){}
+  }
+  return null;
+}
+
 async function callVibeBot(userText, opts={}){
+  // simpan pesan user (teks biasa)
   state.history.push({role:'user', content:userText});
+  // batasi history biar gak lag
+  if(state.history.length > 16){
+    state.history = state.history.slice(-16);
+  }
+
   addTyping();
   state.busy = true;
   document.getElementById('sendBtn').disabled = true;
@@ -461,15 +481,27 @@ async function callVibeBot(userText, opts={}){
         messages: state.history,
       })
     });
+
     const data = await response.json();
+
+    if(!response.ok){
+      removeTyping();
+      const errMsg = data?.error || 'Terjadi kesalahan di server';
+      addMsg({role:'bot', text: 'Waduh, ada masalah: ' + errMsg + '\n\nCoba cek lagi GEMINI_API_KEY di Vercel ya 🙏'});
+      return;
+    }
+
     let raw = (data.content || []).map(b=>b.text||'').join('').trim();
-    raw = raw.replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/```$/,'').trim();
+    let parsed = extractJSON(raw);
 
-    let parsed;
-    try{ parsed = JSON.parse(raw); }
-    catch(e){ parsed = {mood:'netral', reply: raw || 'Duh, VibeBot lagi nge-lag dikit. Coba lagi ya~'}; }
+    if(!parsed){
+      // fallback kalau JSON gagal
+      parsed = { mood: 'netral', reply: raw || 'Duh, aku lagi bingung dikit. Coba ketik ulang ya~' };
+    }
 
-    state.history.push({role:'assistant', content: JSON.stringify(parsed)});
+    // simpan balasan bot sebagai teks biasa (bukan full JSON) biar history bersih
+    state.history.push({role:'assistant', content: parsed.reply || raw});
+
     removeTyping();
     setMoodColor(parsed.mood || 'netral');
 
@@ -481,6 +513,7 @@ async function callVibeBot(userText, opts={}){
   }catch(err){
     removeTyping();
     addMsg({role:'bot', text:'Waduh, koneksi ke VibeBot lagi bermasalah nih. Coba lagi sebentar ya 🙏'});
+    console.error(err);
   }finally{
     state.busy = false;
     document.getElementById('sendBtn').disabled = false;
