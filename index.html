@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VibeBot — AI Vibe Companion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#140828;
+    --panel:#1f0f38;
+    --panel-2:#2a1748;
+    --purple:#8b3ff2;
+    --pink:#ff4fa3;
+    --teal:#1fe0a8;
+    --gold:#ffcf56;
+    --text:#f4eefc;
+    --muted:#b3a0d6;
+    --line:rgba(244,238,252,0.10);
+    --mood-color: var(--purple);
+    --mood-color-2: var(--pink);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 15% -10%, rgba(139,63,242,0.35), transparent 45%),
+      radial-gradient(circle at 100% 0%, rgba(255,79,163,0.20), transparent 40%),
+      var(--void);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  #app{
+    max-width:720px;
+    margin:0 auto;
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:16px 18px 14px;
+    border-bottom:1px solid var(--line);
+    flex-shrink:0;
+  }
+  .orb-wrap{position:relative; width:46px; height:46px; flex-shrink:0;}
+  .orb{
+    width:46px;height:46px;border-radius:50%;
+    background:conic-gradient(from 0deg, var(--mood-color), var(--mood-color-2), var(--mood-color));
+    filter:saturate(1.3);
+    animation:spin 6s linear infinite, pulse 2.4s ease-in-out infinite;
+    transition:background 0.8s ease;
+  }
+  .orb::after{
+    content:"";
+    position:absolute; inset:6px;
+    border-radius:50%;
+    background:var(--void);
+    box-shadow:inset 0 0 12px rgba(0,0,0,0.5);
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
+
+  .brand{flex:1; min-width:0;}
+  .brand .name{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:19px;
+    letter-spacing:0.2px;
+  }
+  .brand .mood-line{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11.5px;
+    color:var(--muted);
+    text-transform:lowercase;
+  }
+  .mood-line b{color:var(--text); text-transform:none;}
+
+  .hbtn{
+    width:36px;height:36px;border-radius:11px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--text);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    font-size:15px;
+    flex-shrink:0;
+  }
+  .hbtn:active{transform:scale(0.94);}
+
+  /* ---------- Quick actions ---------- */
+  .quick-row{
+    display:flex;
+    gap:8px;
+    padding:12px 14px;
+    overflow-x:auto;
+    border-bottom:1px solid var(--line);
+    flex-shrink:0;
+    scrollbar-width:none;
+  }
+  .quick-row::-webkit-scrollbar{display:none;}
+  .chip{
+    flex-shrink:0;
+    display:flex; align-items:center; gap:6px;
+    padding:8px 13px;
+    border-radius:999px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--text);
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .chip:active{transform:scale(0.96);}
+  .chip .n{
+    font-family:'JetBrains Mono',monospace;
+    color:var(--gold);
+    font-size:10.5px;
+  }
+
+  /* ---------- Chat ---------- */
+  #chat{
+    flex:1;
+    overflow-y:auto;
+    padding:18px 16px 8px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .msg{max-width:82%; animation:rise 0.25s ease;}
+  @keyframes rise{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+  .msg.user{align-self:flex-end;}
+  .msg.bot{align-self:flex-start;}
+  .bubble{
+    padding:11px 14px;
+    border-radius:16px;
+    font-size:14.5px;
+    line-height:1.5;
+    white-space:pre-wrap;
+  }
+  .msg.user .bubble{
+    background:linear-gradient(135deg, var(--purple), var(--pink));
+    border-bottom-right-radius:5px;
+    color:#fff;
+  }
+  .msg.bot .bubble{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-bottom-left-radius:5px;
+  }
+  .msg.system .bubble{
+    background:transparent;
+    border:1px dashed var(--line);
+    color:var(--muted);
+    font-size:13px;
+  }
+  .tag{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    color:var(--muted);
+    margin:0 3px 5px;
+  }
+  .pills{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;}
+  .pill{
+    font-size:11.5px; font-weight:600;
+    padding:4px 10px; border-radius:999px;
+    background:rgba(255,255,255,0.06);
+    border:1px solid var(--line);
+    font-family:'JetBrains Mono',monospace;
+  }
+  .typing{display:flex; gap:4px; padding:14px;}
+  .typing span{
+    width:6px;height:6px;border-radius:50%;
+    background:var(--muted);
+    animation:tdot 1.2s infinite ease-in-out;
+  }
+  .typing span:nth-child(2){animation-delay:0.15s;}
+  .typing span:nth-child(3){animation-delay:0.3s;}
+  @keyframes tdot{0%,60%,100%{opacity:0.25; transform:translateY(0);} 30%{opacity:1; transform:translateY(-3px);}}
+
+  /* ---------- Input ---------- */
+  #inputRow{
+    display:flex;
+    gap:9px;
+    padding:12px 14px calc(env(safe-area-inset-bottom,0px) + 12px);
+    border-top:1px solid var(--line);
+    flex-shrink:0;
+    background:rgba(20,8,40,0.9);
+    backdrop-filter:blur(6px);
+  }
+  #inputRow input{
+    flex:1;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:12px 14px;
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    font-size:14.5px;
+    outline:none;
+  }
+  #inputRow input:focus{border-color:var(--purple);}
+  #sendBtn{
+    width:46px;height:46px;flex-shrink:0;
+    border-radius:14px;
+    border:none;
+    background:linear-gradient(135deg, var(--purple), var(--pink));
+    color:#fff;
+    font-size:17px;
+    cursor:pointer;
+  }
+  #sendBtn:active{transform:scale(0.94);}
+  #sendBtn:disabled{opacity:0.5;}
+
+  /* ---------- Modal ---------- */
+  .overlay{
+    position:absolute; inset:0;
+    background:rgba(10,4,20,0.72);
+    backdrop-filter:blur(3px);
+    display:flex; align-items:flex-end; justify-content:center;
+    z-index:20;
+    animation:fade 0.2s ease;
+  }
+  @keyframes fade{from{opacity:0;} to{opacity:1;}}
+  .sheet{
+    width:100%; max-width:720px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-bottom:none;
+    border-radius:22px 22px 0 0;
+    padding:20px 20px calc(env(safe-area-inset-bottom,0px) + 22px);
+    max-height:82vh;
+    overflow-y:auto;
+    animation:slideup 0.25s ease;
+  }
+  @keyframes slideup{from{transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;}}
+  .sheet h2{
+    font-family:'Space Grotesk',sans-serif;
+    margin:0 0 4px;
+    font-size:20px;
+  }
+  .sheet .sub{color:var(--muted); font-size:13px; margin-bottom:16px;}
+  .close-x{
+    position:absolute; top:14px; right:16px;
+    width:32px;height:32px; border-radius:10px;
+    background:var(--panel-2); border:1px solid var(--line);
+    color:var(--text); display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+
+  .feat-list{display:flex; flex-direction:column; gap:8px;}
+  .feat-item{
+    display:flex; align-items:center; gap:12px;
+    padding:11px 12px;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:13px;
+    cursor:pointer;
+  }
+  .feat-item:active{transform:scale(0.98);}
+  .feat-num{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px; color:var(--gold);
+    width:20px;
+  }
+  .feat-item .ft{font-size:14px; font-weight:600;}
+  .feat-item .fd{font-size:11.5px; color:var(--muted);}
+
+  .zpick{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+  .zpick button{
+    padding:12px 6px;
+    border-radius:12px;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--text);
+    font-size:13px;
+    cursor:pointer;
+  }
+  .zpick button:active{transform:scale(0.95);}
+
+  /* Calculator */
+  #calcDisplay{
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:16px;
+    text-align:right;
+    font-family:'JetBrains Mono',monospace;
+    font-size:26px;
+    margin-bottom:12px;
+    word-break:break-all;
+  }
+  .calc-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px;}
+  .calc-grid button{
+    padding:16px 0;
+    border-radius:13px;
+    border:1px solid var(--line);
+    background:var(--panel-2);
+    color:var(--text);
+    font-size:17px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .calc-grid button.op{background:linear-gradient(135deg, var(--purple), var(--pink)); border:none; color:#fff;}
+  .calc-grid button.eq{background:var(--teal); border:none; color:#0a0a0a;}
+  .calc-grid button:active{transform:scale(0.95);}
+
+  .about-badge{
+    display:inline-flex; gap:6px; align-items:center;
+    background:var(--panel-2); border:1px solid var(--line);
+    padding:6px 11px; border-radius:999px;
+    font-size:11.5px; color:var(--muted); margin-bottom:4px;
+  }
+  .about-p{font-size:13.5px; color:var(--muted); line-height:1.6; margin:10px 0;}
+
+  ::-webkit-scrollbar{width:0px;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="orb-wrap"><div class="orb" id="orb"></div></div>
+    <div class="brand">
+      <div class="name">VibeBot</div>
+      <div class="mood-line">mood terbaca: <b id="moodLabel">netral</b></div>
+    </div>
+    <button class="hbtn" id="menuBtn" title="Menu">☰</button>
+    <button class="hbtn" id="profileBtn" title="Profil">◎</button>
+  </header>
+
+  <div class="quick-row" id="quickRow"></div>
+
+  <div id="chat"></div>
+
+  <div id="inputRow">
+    <input id="textInput" type="text" placeholder="Ketik apa aja, VibeBot dengerin..." autocomplete="off">
+    <button id="sendBtn">➤</button>
+  </div>
+
+  <div id="modalRoot"></div>
+</div>
+
+<script>
+const FEATURES = [
+  {n:'01', key:'menu', title:'Menu Utama', desc:'Daftar seluruh perintah VibeBot'},
+  {n:'02', key:'mood', title:'Mood Detector', desc:'Deteksi suasana hati dari obrolan'},
+  {n:'03', key:'musik', title:'Rekomendasi Musik', desc:'Lagu sesuai mood kamu'},
+  {n:'04', key:'motivasi', title:'Motivasi Harian', desc:'Quote motivasi bikinan AI'},
+  {n:'05', key:'kalkulator', title:'Kalkulator Vibe', desc:'Operasi matematika bergaya'},
+  {n:'06', key:'tebak', title:'Tebak Kata Gaul', desc:'Game tebak slang Gen-Z'},
+  {n:'07', key:'horoscope', title:'Horoscope Harian', desc:'Ramalan zodiak dari AI'},
+  {n:'08', key:'waktu', title:'Info Waktu & Tanggal', desc:'Jam & tanggal real-time'},
+  {n:'09', key:'profil', title:'Profil Bot', desc:'Info VibeBot & pengembang'},
+  {n:'10', key:'keluar', title:'Keluar', desc:'Reset & pesan perpisahan'},
+];
+
+const ZODIAC = ['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagitarius','Capricorn','Aquarius','Pisces'];
+
+const MOOD_COLORS = {
+  senang: ['#ffcf56', '#ff4fa3'],
+  sedih:  ['#4a3a7a', '#2a1748'],
+  marah:  ['#ff4fa3', '#8b3ff2'],
+  bosan:  ['#1fe0a8', '#2a1748'],
+  netral: ['#8b3ff2', '#ff4fa3'],
+};
+
+const PLAYLIST = {
+  senang: ['Pop','K-Pop','EDM'],
+  sedih: ['Ballad','Lo-fi'],
+  marah: ['Rock','Rap'],
+  bosan: ['Jazz','Chill Hop'],
+  netral: ['Indie','Acoustic'],
+};
+
+const SYSTEM_PROMPT = `Kamu adalah VibeBot, chatbot AI hasil proyek siswa SMK Negeri 1 Lais jurusan RPL. Kepribadianmu ceria, gaul, hangat, suportif — gunakan Bahasa Indonesia santai ala Gen-Z secukupnya (boleh emoji tipis-tipis, jangan berlebihan, jangan norak).
+
+Kemampuanmu: ngobrol santai, deteksi mood dari pesan user, kasih rekomendasi lagu sesuai mood, motivasi harian, ramalan zodiak, dan main tebak kata gaul.
+
+ATURAN OUTPUT WAJIB: Balas HANYA dengan satu objek JSON valid, tanpa markdown fence, tanpa teks lain di luar JSON, persis format ini:
+{"mood":"senang|sedih|marah|bosan|netral","reply":"isi balasan kamu di sini, teks biasa"}
+
+"mood" diisi sesuai suasana hati yang tersirat dari PESAN TERAKHIR user (bukan mood kamu sendiri). Kalau tidak ada indikasi jelas, pakai "netral". "reply" jangan mengandung objek JSON lagi.`;
+
+let state = {
+  history: [], // {role:'user'|'assistant', content:string}
+  lastMood: 'netral',
+  busy: false,
+};
+
+const chatEl = document.getElementById('chat');
+const orbEl = document.getElementById('orb');
+const moodLabelEl = document.getElementById('moodLabel');
+const quickRow = document.getElementById('quickRow');
+const modalRoot = document.getElementById('modalRoot');
+
+function setMoodColor(mood){
+  const c = MOOD_COLORS[mood] || MOOD_COLORS.netral;
+  document.documentElement.style.setProperty('--mood-color', c[0]);
+  document.documentElement.style.setProperty('--mood-color-2', c[1]);
+  moodLabelEl.textContent = mood;
+  state.lastMood = mood;
+}
+
+function addMsg({role, text, pills, system}){
+  const div = document.createElement('div');
+  div.className = 'msg ' + (system ? 'system' : role);
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  div.appendChild(bubble);
+  if(pills && pills.length){
+    const p = document.createElement('div');
+    p.className = 'pills';
+    pills.forEach(t=>{
+      const s = document.createElement('span');
+      s.className='pill'; s.textContent = t;
+      p.appendChild(s);
+    });
+    bubble.appendChild(p);
+  }
+  chatEl.appendChild(div);
+  chatEl.scrollTop = chatEl.scrollHeight;
+  return div;
+}
+
+function addTyping(){
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.id = 'typingIndicator';
+  div.innerHTML = '<div class="bubble typing"><span></span><span></span><span></span></div>';
+  chatEl.appendChild(div);
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
+function removeTyping(){
+  const t = document.getElementById('typingIndicator');
+  if(t) t.remove();
+}
+
+async function callVibeBot(userText, opts={}){
+  state.history.push({role:'user', content:userText});
+  addTyping();
+  state.busy = true;
+  document.getElementById('sendBtn').disabled = true;
+
+  try{
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        system: SYSTEM_PROMPT,
+        messages: state.history,
+      })
+    });
+    const data = await response.json();
+    let raw = (data.content || []).map(b=>b.text||'').join('').trim();
+    raw = raw.replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/```$/,'').trim();
+
+    let parsed;
+    try{ parsed = JSON.parse(raw); }
+    catch(e){ parsed = {mood:'netral', reply: raw || 'Duh, VibeBot lagi nge-lag dikit. Coba lagi ya~'}; }
+
+    state.history.push({role:'assistant', content: JSON.stringify(parsed)});
+    removeTyping();
+    setMoodColor(parsed.mood || 'netral');
+
+    let pills = null;
+    if(opts.withMusic){
+      pills = PLAYLIST[parsed.mood] || PLAYLIST.netral;
+    }
+    addMsg({role:'bot', text: parsed.reply || '...', pills});
+  }catch(err){
+    removeTyping();
+    addMsg({role:'bot', text:'Waduh, koneksi ke VibeBot lagi bermasalah nih. Coba lagi sebentar ya 🙏'});
+  }finally{
+    state.busy = false;
+    document.getElementById('sendBtn').disabled = false;
+  }
+}
+
+/* ---------- quick actions ---------- */
+function renderQuickRow(){
+  quickRow.innerHTML = '';
+  FEATURES.forEach(f=>{
+    const c = document.createElement('div');
+    c.className = 'chip';
+    c.innerHTML = `<span class="n">${f.n}</span><span>${f.title}</span>`;
+    c.onclick = ()=> runFeature(f.key);
+    quickRow.appendChild(c);
+  });
+}
+
+function runFeature(key){
+  if(state.busy && !['waktu','kalkulator','menu','profil'].includes(key)) return;
+  switch(key){
+    case 'menu': openMenuModal(); break;
+    case 'mood':
+      addMsg({role:'user', text:'[Mood Detector] Coba tebak mood aku dari obrolan kita ya'});
+      callVibeBot('Coba tebak mood aku sekarang dari obrolan kita, terus kasih tanggapan singkat.');
+      break;
+    case 'musik':
+      addMsg({role:'user', text:'[Rekomendasi Musik] Kasih rekomendasi lagu sesuai mood aku'});
+      callVibeBot('Rekomendasiin genre/lagu yang cocok buat mood aku sekarang, singkat aja.', {withMusic:true});
+      break;
+    case 'motivasi':
+      addMsg({role:'user', text:'[Motivasi Harian] Kasih motivasi hari ini dong'});
+      callVibeBot('Kasih aku satu quote motivasi buat hari ini, singkat dan nendang.');
+      break;
+    case 'kalkulator': openCalcModal(); break;
+    case 'tebak':
+      addMsg({role:'user', text:'[Tebak Kata Gaul] Mulai game tebak kata gaul'});
+      callVibeBot('Mulai game tebak kata gaul. Kasih 1 istilah slang Gen-Z Indonesia buat aku tebak artinya, jangan kasih tau artinya dulu, tungguin tebakanku.');
+      break;
+    case 'horoscope': openZodiacModal(); break;
+    case 'waktu': showWaktu(); break;
+    case 'profil': openProfilModal(); break;
+    case 'keluar': openKeluarModal(); break;
+  }
+}
+
+function showWaktu(){
+  const now = new Date();
+  const tgl = now.toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  const jam = now.toLocaleTimeString('id-ID');
+  addMsg({role:'user', text:'[Info Waktu & Tanggal]'});
+  addMsg({role:'bot', text:`📅 ${tgl}\n🕐 ${jam}`, system:false});
+}
+
+/* ---------- modals ---------- */
+function closeModal(){ modalRoot.innerHTML = ''; }
+
+function openMenuModal(){
+  const items = FEATURES.map(f=>`
+    <div class="feat-item" data-key="${f.key}">
+      <span class="feat-num">${f.n}</span>
+      <div>
+        <div class="ft">${f.title}</div>
+        <div class="fd">${f.desc}</div>
+      </div>
+    </div>`).join('');
+  modalRoot.innerHTML = `
+    <div class="overlay" id="ov">
+      <div class="sheet">
+        <button class="close-x" id="closeX">✕</button>
+        <h2>Menu Utama</h2>
+        <div class="sub">10 fitur unggulan VibeBot — tap buat langsung coba</div>
+        <div class="feat-list">${items}</div>
+      </div>
+    </div>`;
+  document.getElementById('closeX').onclick = closeModal;
+  document.getElementById('ov').onclick = (e)=>{ if(e.target.id==='ov') closeModal(); };
+  document.querySelectorAll('.feat-item').forEach(el=>{
+    el.onclick = ()=>{ const k = el.dataset.key; closeModal(); runFeature(k); };
+  });
+}
+
+function openProfilModal(){
+  modalRoot.innerHTML = `
+    <div class="overlay" id="ov">
+      <div class="sheet">
+        <button class="close-x" id="closeX">✕</button>
+        <h2>Profil VibeBot</h2>
+        <span class="about-badge">✨ AI-powered · Gen-Z vibe</span>
+        <p class="about-p">VibeBot lahir dari istilah Gen-Z "vibe" — suasana atau energi yang terasa dari suatu situasi. Awalnya dibangun sebagai chatbot rule-based berbasis Python oleh siswa jurusan RPL SMK Negeri 1 Lais, sekarang berevolusi jadi versi AI yang bisa benar-benar memahami obrolanmu.</p>
+        <p class="about-p">Fitur andalan: deteksi mood, rekomendasi musik, motivasi harian, ramalan zodiak, dan game tebak kata gaul — semua ditemani gaya ngobrol yang santai dan suportif.</p>
+      </div>
+    </div>`;
+  document.getElementById('closeX').onclick = closeModal;
+  document.getElementById('ov').onclick = (e)=>{ if(e.target.id==='ov') closeModal(); };
+}
+
+function openZodiacModal(){
+  const btns = ZODIAC.map(z=>`<button data-z="${z}">${z}</button>`).join('');
+  modalRoot.innerHTML = `
+    <div class="overlay" id="ov">
+      <div class="sheet">
+        <button class="close-x" id="closeX">✕</button>
+        <h2>Horoscope Harian</h2>
+        <div class="sub">Pilih zodiak kamu</div>
+        <div class="zpick">${btns}</div>
+      </div>
+    </div>`;
+  document.getElementById('closeX').onclick = closeModal;
+  document.getElementById('ov').onclick = (e)=>{ if(e.target.id==='ov') closeModal(); };
+  document.querySelectorAll('.zpick button').forEach(b=>{
+    b.onclick = ()=>{
+      const z = b.dataset.z;
+      closeModal();
+      addMsg({role:'user', text:`[Horoscope Harian] Zodiak: ${z}`});
+      callVibeBot(`Buatin ramalan horoscope harian singkat buat zodiak ${z}, gaya kamu, positif dan fun.`);
+    };
+  });
+}
+
+function openKeluarModal(){
+  modalRoot.innerHTML = `
+    <div class="overlay" id="ov">
+      <div class="sheet">
+        <button class="close-x" id="closeX">✕</button>
+        <h2>Yakin mau keluar?</h2>
+        <div class="sub">Ini bakal reset obrolan kamu sama VibeBot.</div>
+        <div class="feat-list">
+          <div class="feat-item" id="confirmKeluar"><div class="ft">Ya, reset obrolan</div></div>
+          <div class="feat-item" id="cancelKeluar"><div class="ft">Batal</div></div>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('closeX').onclick = closeModal;
+  document.getElementById('ov').onclick = (e)=>{ if(e.target.id==='ov') closeModal(); };
+  document.getElementById('cancelKeluar').onclick = closeModal;
+  document.getElementById('confirmKeluar').onclick = ()=>{
+    closeModal();
+    state.history = [];
+    setMoodColor('netral');
+    chatEl.innerHTML = '';
+    addMsg({role:'bot', text:'Sampai jumpa lagi! Makasih udah ngobrol bareng VibeBot hari ini 💜 Semangat terus, ya!'});
+    setTimeout(()=> addMsg({role:'bot', text:'(obrolan direset — ketik apa aja buat mulai dari awal)'}), 500);
+  };
+}
+
+/* ---------- calculator (local, no API) ---------- */
+let calcState = '0';
+function openCalcModal(){
+  calcState = '0';
+  const keys = ['7','8','9','÷','4','5','6','×','1','2','3','-','0','.','=','+'];
+  const grid = keys.map(k=>{
+    const cls = (k==='=') ? 'eq' : (['÷','×','-','+'].includes(k) ? 'op' : '');
+    return `<button class="${cls}" data-k="${k}">${k}</button>`;
+  }).join('');
+  modalRoot.innerHTML = `
+    <div class="overlay" id="ov">
+      <div class="sheet">
+        <button class="close-x" id="closeX">✕</button>
+        <h2>Kalkulator Vibe</h2>
+        <div class="sub">Operasi matematika, bergaya VibeBot ✨</div>
+        <div id="calcDisplay">0</div>
+        <div class="calc-grid">
+          ${grid}
+          <button data-k="C" style="grid-column: span 4; background:var(--pink); border:none; color:#fff;">Clear</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('closeX').onclick = closeModal;
+  document.getElementById('ov').onclick = (e)=>{ if(e.target.id==='ov') closeModal(); };
+  document.querySelectorAll('.calc-grid button').forEach(b=>{
+    b.onclick = ()=> calcPress(b.dataset.k);
+  });
+}
+function calcPress(k){
+  const disp = document.getElementById('calcDisplay');
+  if(k==='C'){ calcState='0'; }
+  else if(k==='='){
+    try{
+      const expr = calcState.replace(/×/g,'*').replace(/÷/g,'/');
+      const result = Function('"use strict";return ('+expr+')')();
+      calcState = String(Number(result.toFixed(6)));
+    }catch(e){ calcState = 'Error'; }
+  } else {
+    if(calcState==='0' && !['+','-','×','÷','.'].includes(k)) calcState = k;
+    else calcState += k;
+  }
+  disp.textContent = calcState;
+}
+
+/* ---------- init ---------- */
+function init(){
+  renderQuickRow();
+  setMoodColor('netral');
+  addMsg({role:'bot', text:'Heyy! Aku VibeBot 👋 Chatbot AI temen ngobrol kamu — bisa baca mood, rekomendasiin lagu, kasih motivasi, sampai ngajak main tebak kata gaul. Mau mulai dari mana nih?'});
+}
+
+document.getElementById('sendBtn').onclick = handleSend;
+document.getElementById('textInput').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter') handleSend();
+});
+document.getElementById('menuBtn').onclick = openMenuModal;
+document.getElementById('profileBtn').onclick = openProfilModal;
+
+function handleSend(){
+  const input = document.getElementById('textInput');
+  const text = input.value.trim();
+  if(!text || state.busy) return;
+  addMsg({role:'user', text});
+  input.value = '';
+  callVibeBot(text);
+}
+
+init();
+</script>
+</body>
+</html>
